@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Max>
+    <Image id="bg" width="1000" height="600" src="embed:background.jpg" />
+    <Center>
+        <VBox>
+            <HBox>
+                <Image id="id" width="250" height="150" src="embed:idcard.jpg" />
+                <Label> </Label>
+                <Image id="qr" width="150" height="150" src="embed:qrcode.png" />
+            </HBox>
+            <Label> </Label>
+            <Label id="description" color="black">机读操作简单易行，只需将第二代身份证放在阅读器读卡区</Label>
+        </VBox>
+    </Center>
+</Max>
