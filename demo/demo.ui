@@ -9,7 +9,7 @@
                 <Image id="qr" width="150" height="150" src="embed:qrcode.png" />
             </HBox>
             <Label> </Label>
-            <Label id="description" color="black">机读操作简单易行，只需将第二代身份证放在阅读器读卡区</Label>
+            <Text id="description" color="black">机读操作简单易行，只需将第二代身份证放在阅读器读卡区</Text>
         </VBox>
     </Center>
 </Max>

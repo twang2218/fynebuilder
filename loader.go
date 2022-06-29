@@ -2,97 +2,144 @@ package fynebuilder
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io"
 	"os"
 
 	log "github.com/sirupsen/logrus"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
+	"github.com/spf13/cast"
 )
 
-type TagObject struct {
-	Tag    string
-	Object fyne.CanvasObject
+type attributes map[string]string
+
+func (a *attributes) GetString(key string) string {
+	return (*a)[key]
 }
 
-func Load(file string, res map[string]*fyne.StaticResource) fyne.CanvasObject {
-	// Open our xmlFile
-	xmlFile, err := os.Open(file)
-	// if we os.Open returns an error then handle it
+func (a *attributes) GetInt(key string) int {
+	return cast.ToInt((*a)[key])
+}
+
+func (a *attributes) GetFloat32(key string) float32 {
+	return cast.ToFloat32((*a)[key])
+}
+
+func (a *attributes) GetFloat64(key string) float64 {
+	return cast.ToFloat64((*a)[key])
+}
+
+type ObjectSet map[string]fyne.CanvasObject
+
+func (s ObjectSet) Get(key string) fyne.CanvasObject {
+	return s[key]
+}
+
+const key_top = "_top_"
+
+func (s ObjectSet) GetTop() fyne.CanvasObject {
+	return s[key_top]
+}
+
+type objectTag struct {
+	Tag        string
+	Attributes attributes
+	Object     fyne.CanvasObject
+}
+
+func Load(file string, res map[string]*fyne.StaticResource) (ObjectSet, error) {
+	// open xml file
+	f, err := os.Open(file)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+	defer f.Close()
+	log.Tracef("Opened XML %q file", file)
+	//	create decoder for XML
+	d := xml.NewDecoder(f)
 
-	// log.Printf("Successfully Opened %s", file)
-	// defer the closing of our xmlFile so that we can parse it later on
-	defer xmlFile.Close()
+	//	map which contains interested objects
+	objs := make(ObjectSet)
 
-	dec := xml.NewDecoder(xmlFile)
+	//	stack is used to preserve the parent path
+	var stack []objectTag
 
-	var stack []TagObject
-	var top fyne.CanvasObject
-	dict := make(map[string]fyne.CanvasObject)
-
-	var current fyne.CanvasObject
+	//	go through the XML elements
 	for {
-		tok, err := dec.Token()
+		//	get next element
+		t, err := d.Token()
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatalf("xmlselect: %v", err)
+			return objs, err
 		}
 
-		switch tok := tok.(type) {
+		switch t := t.(type) {
 		case xml.StartElement:
-			//	开始
-			// fmt.Printf("[Start] %+v\n", tok)
-
-			attrs := xml_to_attrs(tok.Attr)
-			current = NewWidget(tok.Name.Local, attrs, res)
-			if top == nil {
-				top = current
+			//	open tag
+			var current objectTag
+			current.Tag = t.Name.Local
+			current.Attributes = get_attributes(t.Attr)
+			current.Object = newWidget(current, res)
+			log.Tracef("<%s>", current.Tag)
+			//	preserve the TOP object in final result
+			if len(objs) == 0 {
+				objs[key_top] = current.Object
 			}
-			if id, ok := attrs["id"]; ok {
-				dict[id] = current
+			//	preserve the object with ID in final result
+			if id, ok := current.Attributes["id"]; ok {
+				objs[id] = current.Object
 			}
+			//	add current object to the parent container if the parent is a container
 			if len(stack) > 0 {
 				parent := stack[len(stack)-1]
 				if c, ok := parent.Object.(*fyne.Container); ok {
-					c.Add(current)
-					// fmt.Printf("Add %s to %s\n", tok.Name.Local, parent.Tag)
+					c.Add(current.Object)
+					// fmt.Printf("Add %s to %s\n", current.Tag, parent.Tag)
 				}
 			}
-			stack = append(stack, TagObject{Tag: tok.Name.Local, Object: current})
+			//	push the current tag into the stack
+			stack = append(stack, current)
 		case xml.EndElement:
-			//	结束
-			stack = stack[:len(stack)-1]
-			// fmt.Printf("[Stop]  %+v\n", tok)
+			//	close tag
+			current := stack[len(stack)-1]
+			if current.Tag != t.Name.Local {
+				log.Errorf("tag not match: expected: <%s>, actual: <%s>", current.Tag, t.Name.Local)
+			} else {
+				log.Tracef("</%s>", current.Tag)
+				//	pop the last tag from the stack
+				stack = stack[:len(stack)-1]
+			}
 		case xml.CharData:
-			//	内容
-			if len(stack) > 1 {
-				item := stack[len(stack)-1]
-				switch item.Tag {
-				case "Label":
-					if label, ok := current.(*widget.Label); ok {
-						label.SetText(string(tok))
-						// fmt.Printf("<%s> SetText(): %q\n", item.Tag, tok)
-					}
-					// fmt.Printf("<%s>: %q\n", item.Tag, tok)
+			//	content
+			if len(stack) > 0 {
+				current := stack[len(stack)-1]
+				switch o := current.Object.(type) {
+				case *widget.Label:
+					//	<Label>xxxxxxx</Label>
+					o.SetText(string(t))
+					log.Tracef("<Label>.SetText(%s)", t)
+				case *canvas.Text:
+					o.Text = string(t)
+					log.Tracef("<Text>.Text = %s", t)
 				}
 			}
 		}
 	}
 
-	// for id, c := range dict {
-	// 	fmt.Printf("[%s]: \t %+v\n", id, c)
-	// }
+	//	validate
+	if len(stack) > 0 {
+		return objs, fmt.Errorf("XML file is corrupted. %v", stack)
+	}
 
-	return top
+	return objs, nil
 }
 
-func xml_to_attrs(attrs []xml.Attr) map[string]string {
-	m := make(map[string]string, len(attrs))
+func get_attributes(attrs []xml.Attr) attributes {
+	m := make(attributes, len(attrs))
 	for _, attr := range attrs {
 		m[attr.Name.Local] = attr.Value
 	}

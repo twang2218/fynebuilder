@@ -6,6 +6,7 @@ require (
 	fyne.io/fyne/v2 v2.2.1
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/sirupsen/logrus v1.8.1
+	github.com/spf13/cast v1.3.1
 	github.com/ulikunitz/xz v0.5.10
 )
 

@@ -2,15 +2,16 @@ package main
 
 import (
 	_ "embed"
-	"log"
 	"time"
-
-	"github.com/twang2218/fynebuilder"
-	"github.com/twang2218/fynebuilder/theme"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+
 	"github.com/fsnotify/fsnotify"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/twang2218/fynebuilder"
+	"github.com/twang2218/fynebuilder/theme"
 )
 
 //go:embed assets/icon.png
@@ -67,20 +68,30 @@ func main() {
 	//      窗口
 	w := a.NewWindow("访客身份校验")
 
-	var embedResourcesDict = map[string]*fyne.StaticResource{
+	var res = map[string]*fyne.StaticResource{
 		"idcard.jpg":     resourceJpegIdCard,
 		"background.jpg": resourceJpegBackground,
 		"qrcode.png":     resourcePngQRcode,
 	}
 
-	c := fynebuilder.Load("demo.ui", embedResourcesDict)
-	w.SetContent(c)
+	ui_file := "demo.ui"
 
-	watcher := monitor("demo.ui", func() {
+	objs, err := fynebuilder.Load(ui_file, res)
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.SetContent(objs.GetTop())
+
+	watcher := monitor(ui_file, func() {
 		t := time.Now()
-		c := fynebuilder.Load("demo.ui", embedResourcesDict)
-		w.SetContent(c)
-		log.Printf("Reloaded %q in %v.", "demo.ui", time.Since(t))
+		objs, err := fynebuilder.Load(ui_file, res)
+		if err != nil {
+			log.Error(err)
+		} else {
+			w.SetContent(objs.GetTop())
+		}
+
+		log.Printf("Reloaded %q in %v.", ui_file, time.Since(t))
 	})
 
 	w.ShowAndRun()
