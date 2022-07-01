@@ -68,7 +68,7 @@ func main() {
 	//      窗口
 	w := a.NewWindow("访客身份校验")
 
-	var res = map[string]*fyne.StaticResource{
+	var res = fynebuilder.ResourceDict{
 		"idcard.jpg":     resourceJpegIdCard,
 		"background.jpg": resourceJpegBackground,
 		"qrcode.png":     resourcePngQRcode,

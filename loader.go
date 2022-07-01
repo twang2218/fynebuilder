@@ -9,48 +9,29 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/widget"
-	"github.com/spf13/cast"
 )
 
-type attributes map[string]string
+type ResourceDict map[string]fyne.Resource
 
-func (a *attributes) GetString(key string) string {
-	return (*a)[key]
-}
+type ObjectDict map[string]fyne.CanvasObject
 
-func (a *attributes) GetInt(key string) int {
-	return cast.ToInt((*a)[key])
-}
-
-func (a *attributes) GetFloat32(key string) float32 {
-	return cast.ToFloat32((*a)[key])
-}
-
-func (a *attributes) GetFloat64(key string) float64 {
-	return cast.ToFloat64((*a)[key])
-}
-
-type ObjectSet map[string]fyne.CanvasObject
-
-func (s ObjectSet) Get(key string) fyne.CanvasObject {
+func (s ObjectDict) Get(key string) fyne.CanvasObject {
 	return s[key]
 }
 
 const key_top = "_top_"
 
-func (s ObjectSet) GetTop() fyne.CanvasObject {
+func (s ObjectDict) GetTop() fyne.CanvasObject {
 	return s[key_top]
 }
 
-type objectTag struct {
+type ObjectTag struct {
 	Tag        string
-	Attributes attributes
+	Attributes Attributes
 	Object     fyne.CanvasObject
 }
 
-func Load(file string, res map[string]*fyne.StaticResource) (ObjectSet, error) {
+func Load(file string, res ResourceDict) (ObjectDict, error) {
 	// open xml file
 	f, err := os.Open(file)
 	if err != nil {
@@ -62,10 +43,10 @@ func Load(file string, res map[string]*fyne.StaticResource) (ObjectSet, error) {
 	d := xml.NewDecoder(f)
 
 	//	map which contains interested objects
-	objs := make(ObjectSet)
+	objs := make(ObjectDict)
 
 	//	stack is used to preserve the parent path
-	var stack []objectTag
+	var stack []ObjectTag
 
 	//	go through the XML elements
 	for {
@@ -80,9 +61,10 @@ func Load(file string, res map[string]*fyne.StaticResource) (ObjectSet, error) {
 		switch t := t.(type) {
 		case xml.StartElement:
 			//	open tag
-			var current objectTag
-			current.Tag = t.Name.Local
-			current.Attributes = get_attributes(t.Attr)
+			var current = ObjectTag{
+				Tag:        t.Name.Local,
+				Attributes: NewAttributesFromXML(t.Attr),
+			}
 			current.Object = newWidget(current, res)
 			log.Tracef("<%s>", current.Tag)
 			//	preserve the TOP object in final result
@@ -93,39 +75,34 @@ func Load(file string, res map[string]*fyne.StaticResource) (ObjectSet, error) {
 			if id, ok := current.Attributes["id"]; ok {
 				objs[id] = current.Object
 			}
-			//	add current object to the parent container if the parent is a container
+			//	attach current object to the parent container if the parent is a container
 			if len(stack) > 0 {
 				parent := stack[len(stack)-1]
-				if c, ok := parent.Object.(*fyne.Container); ok {
-					c.Add(current.Object)
-					// fmt.Printf("Add %s to %s\n", current.Tag, parent.Tag)
+				var grand ObjectTag
+				if len(stack) > 1 {
+					grand = stack[len(stack)-2]
 				}
+				attach(current, parent, grand, res)
 			}
 			//	push the current tag into the stack
 			stack = append(stack, current)
 		case xml.EndElement:
 			//	close tag
-			current := stack[len(stack)-1]
-			if current.Tag != t.Name.Local {
-				log.Errorf("tag not match: expected: <%s>, actual: <%s>", current.Tag, t.Name.Local)
-			} else {
-				log.Tracef("</%s>", current.Tag)
-				//	pop the last tag from the stack
-				stack = stack[:len(stack)-1]
-			}
-		case xml.CharData:
-			//	content
 			if len(stack) > 0 {
 				current := stack[len(stack)-1]
-				switch o := current.Object.(type) {
-				case *widget.Label:
-					//	<Label>xxxxxxx</Label>
-					o.SetText(string(t))
-					log.Tracef("<Label>.SetText(%s)", t)
-				case *canvas.Text:
-					o.Text = string(t)
-					log.Tracef("<Text>.Text = %s", t)
+				if current.Tag != t.Name.Local {
+					log.Errorf("tag not match: expected: <%s>, actual: <%s>", current.Tag, t.Name.Local)
+				} else {
+					log.Tracef("</%s>", current.Tag)
+					//	pop the last tag from the stack
+					stack = stack[:len(stack)-1]
 				}
+			}
+		case xml.CharData:
+			//	set content
+			if len(stack) > 0 {
+				current := stack[len(stack)-1]
+				setContent(current, string(t))
 			}
 		}
 	}
@@ -136,12 +113,4 @@ func Load(file string, res map[string]*fyne.StaticResource) (ObjectSet, error) {
 	}
 
 	return objs, nil
-}
-
-func get_attributes(attrs []xml.Attr) attributes {
-	m := make(attributes, len(attrs))
-	for _, attr := range attrs {
-		m[attr.Name.Local] = attr.Value
-	}
-	return m
 }
