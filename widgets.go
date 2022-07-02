@@ -58,6 +58,9 @@ func newWidget(tag ObjectTag, res ResourceDict) fyne.CanvasObject {
 			c = container.NewGridWrap(fyne.NewSize(float32(cols), float32(rows)))
 		} else if adaptive {
 			c = container.NewAdaptiveGrid(cols + rows)
+		} else {
+			log.Error("failed to create <Grid>")
+			return nil
 		}
 		size := tag.Attributes.GetSize()
 		c.Resize(size)
@@ -174,6 +177,8 @@ func newWidget(tag ObjectTag, res ResourceDict) fyne.CanvasObject {
 		//	content will be set in `attach()`
 		c := widget.NewCard(title, subtitle, nil)
 		c.Image = image
+		c.Resize(tag.Attributes.GetSize())
+		c.Move(tag.Attributes.GetPosition())
 		return c
 	case "Check":
 		//	label
@@ -204,6 +209,9 @@ func newWidget(tag ObjectTag, res ResourceDict) fyne.CanvasObject {
 		if tag.Attributes.ContainsStyle() {
 			e.TextStyle = tag.Attributes.GetTextStyle()
 		}
+		size := tag.Attributes.GetSize()
+		e.Resize(size)
+		e.Move(tag.Attributes.GetPosition())
 		return e
 	case "FileIcon":
 		src := tag.Attributes.GetString("src")
@@ -261,6 +269,7 @@ func newWidget(tag ObjectTag, res ResourceDict) fyne.CanvasObject {
 		if tag.Attributes.Contains("selected") {
 			r.SetSelected(tag.Attributes.GetString("selected"))
 		}
+		return r
 	case "RichText":
 		switch tag.Attributes.GetString("type") {
 		default:
@@ -328,6 +337,10 @@ func newWidget(tag ObjectTag, res ResourceDict) fyne.CanvasObject {
 		return c
 	case "Image":
 		img := tag.Attributes.GetImage("src", res)
+		if img == nil {
+			log.Errorf("failed to create <Image>: %q", tag.Attributes.GetString("src"))
+			return nil
+		}
 		size := tag.Attributes.GetSize()
 		img.SetMinSize(size)
 		img.Resize(size)
@@ -462,6 +475,10 @@ func attach(current, parent, grand ObjectTag, res ResourceDict) {
 	case "FormItem":
 		label := parent.Attributes.GetString("label")
 		if form, ok := grand.Object.(*widget.Form); ok {
+			if current.Object == nil {
+				log.Errorf("nil object <%s> in <FormItem>", current.Tag)
+				return
+			}
 			item := widget.NewFormItem(label, current.Object)
 			form.AppendItem(item)
 		}

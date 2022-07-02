@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Max>
+    <HSplit>
+        <Entry id="code" type="multiline">
+
+&lt;Max&gt;
+    &lt;Center&gt;
+        &lt;VBox&gt;
+            &lt;Form&gt;
+                &lt;FormItem label=&quot;姓名&quot;&gt;&lt;Entry&gt;&lt;/Entry&gt;&lt;/FormItem&gt;
+                &lt;FormItem label=&quot;性别&quot;&gt;&lt;RadioGroup options=&quot;男,女&quot; /&gt;&lt;/FormItem&gt;
+                &lt;FormItem label=&quot;所属城市&quot;&gt;&lt;Select options=&quot;北京,上海,广州,深圳&quot; selected=&quot;北京&quot; /&gt;&lt;/FormItem&gt;
+                &lt;FormItem label=&quot;&gt;&gt;&gt;&gt;&quot;&gt;&lt;ProgressBarInfinite /&gt;&lt;/FormItem&gt;
+            &lt;/Form&gt;
+            &lt;Separator /&gt;
+            &lt;Card&gt;
+                &lt;LinearGradient width=&quot;300&quot; height=&quot;300&quot; start_color=&quot;yellow&quot; stop_color=&quot;orange&quot; angle=&quot;45&quot; /&gt;
+            &lt;/Card&gt;
+        &lt;/VBox&gt;
+    &lt;/Center&gt;
+&lt;/Max&gt;
+
+        </Entry>
+        <Max id="visual">
+        </Max>
+    </HSplit>
+</Max>

@@ -6,5 +6,7 @@ fonts:
 	xz ./theme/fonts/wqy-microhei.ttc
 
 demo:
-	cd demo && go run .
+	cd cmd/demo && go run .
 
+builder:
+	cd cmd/builder && go run . -v

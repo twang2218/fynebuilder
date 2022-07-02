@@ -1,10 +1,11 @@
 package fynebuilder
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io"
-	"os"
+	"io/ioutil"
 
 	log "github.com/sirupsen/logrus"
 
@@ -31,16 +32,23 @@ type ObjectTag struct {
 	Object     fyne.CanvasObject
 }
 
-func Load(file string, res ResourceDict) (ObjectDict, error) {
+func LoadFromFile(file string, res ResourceDict) (ObjectDict, error) {
 	// open xml file
-	f, err := os.Open(file)
+	content, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	log.Tracef("Opened XML %q file", file)
+	return LoadFromString(content, res)
+}
+
+func LoadFromString(content []byte, res ResourceDict) (ObjectDict, error) {
+	//	validate xml
+	if err := xml.Unmarshal(content, new(interface{})); err != nil {
+		return nil, err
+	}
+
 	//	create decoder for XML
-	d := xml.NewDecoder(f)
+	d := xml.NewDecoder(bytes.NewReader(content))
 
 	//	map which contains interested objects
 	objs := make(ObjectDict)

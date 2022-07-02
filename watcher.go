@@ -18,12 +18,19 @@ func NewWatcher(file string, res ResourceDict, handler func(ObjectDict)) *fsnoti
 	watcher.Add(file)
 
 	f := func() {
-		objs, err := Load(file, res)
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf("Fatal error: %v", r)
+			}
+		}()
+
+		objs, err := LoadFromFile(file, res)
 		if err != nil {
 			log.Errorf("Load(%s) error: %v", file, err)
+		} else {
+			//	update ObjectDict
+			handler(objs)
 		}
-		//	update ObjectDict
-		handler(objs)
 	}
 
 	//	update ObjectDict if file changed

@@ -19,7 +19,7 @@ Fyne GUI builder which converts an XML UI into a Fyne UI object. Seperating the 
                 <Image id="qr" width="150" height="150" src="embed:qrcode.png" />
             </HBox>
             <Label> </Label>
-            <Label id="description" color="black">机读操作简单易行，只需将第二代身份证放在阅读器读卡区</Label>
+            <Text id="description" color="black">机读操作简单易行，只需将第二代身份证放在阅读器读卡区</Text>
         </VBox>
     </Center>
 </Max>
@@ -31,31 +31,28 @@ Fyne GUI builder which converts an XML UI into a Fyne UI object. Seperating the 
 func main() {
 	a := app.New()
 	a.Settings().SetTheme(&theme.UnicodeTheme{})
-	a.SetIcon(resourceIcon)
+
+	var res = fynebuilder.ResourceDict{
+		"icon.png":       fyne.NewStaticResource("icon.png", icon),
+		"idcard.jpg":     fyne.NewStaticResource("idcard.jpg", idcard),
+		"background.jpg": fyne.NewStaticResource("background.jpg", background),
+		"qrcode.png":     fyne.NewStaticResource("qrcode.png", qrcode),
+	}
+
+	a.SetIcon(res["icon.png"])
+
 	//      窗口
 	w := a.NewWindow("访客身份校验")
 
-	var embedResourcesDict = map[string]*fyne.StaticResource{
-		"idcard.jpg":     resourceJpegIdCard,
-		"background.jpg": resourceJpegBackground,
-		"qrcode.png":     resourcePngQRcode,
-	}
-
-	c := fynebuilder.Load("demo.ui", embedResourcesDict)
-	w.SetContent(c)
-
-	watcher := monitor("demo.ui", func() {
-		t := time.Now()
-		c := fynebuilder.Load("demo.ui", embedResourcesDict)
-		w.SetContent(c)
-		log.Printf("Reloaded %q in %v.", "demo.ui", time.Since(t))
+	watcher := fynebuilder.NewWatcher("demo.ui", res, func(objs fynebuilder.ObjectDict) {
+		w.SetContent(objs.GetTop())
 	})
+	defer watcher.Close()
 
 	w.ShowAndRun()
-	watcher.Close()
 }
 ```
 
 ### Generated UI
 
-![Screenshot](demo/assets/screenshot.png)
+![Screenshot](cmd/demo/assets/screenshot.png)
